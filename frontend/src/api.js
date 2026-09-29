@@ -118,7 +118,7 @@ export async function analyzeManuscript(file, onProgress) {
 
 export async function verifyManuscript(id, analysis) {
     const response = await fetch(
-        `${API_BASE_URL}/manuscripts/${encodeURIComponent(id)}/verify`,
+        `\({API_BASE_URL}/manuscripts/\){encodeURIComponent(id)}/verify`,
         {
             method: 'POST',
             headers: {
@@ -156,9 +156,24 @@ export async function getManuscripts() {
     return response.json();
 }
 
+// Added to fetch an individual manuscript by ID directly from the backend
+export async function getManuscriptById(id) {
+    const response = await fetch(
+        `\({API_BASE_URL}/manuscripts/\){encodeURIComponent(id)}`
+    );
+
+    if (!response.ok) {
+        throw new Error(
+            `Could not load manuscript details (${response.status})`
+        );
+    }
+
+    return response.json();
+}
+
 export async function getPendingAnalysis(id) {
     const response = await fetch(
-        `${API_BASE_URL}/manuscripts/pending/${encodeURIComponent(id)}`
+        `\({API_BASE_URL}/manuscripts/pending/\){encodeURIComponent(id)}`
     );
 
     if (!response.ok) {

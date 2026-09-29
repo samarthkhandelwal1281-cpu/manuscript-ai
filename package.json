@@ -1,0 +1,21 @@
+{
+  "name": "manuscript-ai",
+  "version": "1.0.0",
+  "description": "> AI-assisted digitization, analysis, translation, and preservation of historical Indian manuscripts.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samarthkhandelwal1281-cpu/manuscript-ai.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/samarthkhandelwal1281-cpu/manuscript-ai/issues"
+  },
+  "homepage": "https://github.com/samarthkhandelwal1281-cpu/manuscript-ai#readme"
+}
