@@ -36,3 +36,5 @@ backend/HELP.md
 .env.*
 !.env.example
 repomix-output.xml
+
+# ./mvnw spring-boot:run

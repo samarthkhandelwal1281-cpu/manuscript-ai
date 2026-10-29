@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Upload,
     Database,
     Clock,
     CheckCircle,
+    ChevronRight,
     FileText,
     RefreshCw,
 } from 'lucide-react';
@@ -13,6 +15,15 @@ import { getManuscripts } from '../api';
 
 export default function Dashboard({ onAnalyze }) {
     const fileInputRef = useRef(null);
+    const navigate = useNavigate();
+
+    function openManuscript(manuscript) {
+        if (!manuscript?.id) {
+            return;
+        }
+
+        navigate(`/manuscript/${encodeURIComponent(manuscript.id)}`);
+    }
 
     const [archives, setArchives] = useState([]);
     const [loadingArchives, setLoadingArchives] = useState(true);
@@ -143,7 +154,8 @@ export default function Dashboard({ onAnalyze }) {
                     {archives.map((manuscript) => (
                         <div
                             key={manuscript.id}
-                            className="group bg-secondary p-5 rounded-2xl border border-white/5 flex gap-5 items-center hover:border-gold/30 transition-all"
+                            onClick={() => openManuscript(manuscript)}
+                            className="group bg-secondary p-5 rounded-2xl border border-white/5 flex gap-5 items-center hover:border-gold/30 transition-all cursor-pointer"
                         >
                             <div className="w-20 h-20 bg-white/5 rounded-xl overflow-hidden border border-white/5 shrink-0">
                                 <img
@@ -166,6 +178,19 @@ export default function Dashboard({ onAnalyze }) {
                                     {manuscript.language || 'Unknown'} •{' '}
                                     {manuscript.script || 'Unknown'}
                                 </p>
+
+                                <button
+                                    onClick={(event) => {
+                                        // Keep the click from also firing the
+                                        // card-level navigation twice.
+                                        event.stopPropagation();
+                                        openManuscript(manuscript);
+                                    }}
+                                    className="mt-3 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gold hover:text-goldLight transition-colors"
+                                >
+                                    View Details
+                                    <ChevronRight size={12} />
+                                </button>
                             </div>
                         </div>
                     ))}

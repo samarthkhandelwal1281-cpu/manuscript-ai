@@ -354,7 +354,7 @@ export default function AnalysisPage({
     );
 }
 
-function InfoCard({ label, value, gold = false }) {
+export function InfoCard({ label, value, gold = false }) {
     return (
         <div className="bg-secondary p-4 rounded-2xl border border-white/5">
             <p className="text-[10px] text-white/30 uppercase mb-1 font-bold">

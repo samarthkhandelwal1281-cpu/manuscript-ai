@@ -1,6 +1,11 @@
 package com.manuscript.backend.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.genai.errors.ApiException;
+import com.google.genai.errors.GenAiIOException;
 import com.manuscript.backend.dto.ManuscriptAnalysis;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
@@ -9,6 +14,9 @@ import org.springframework.util.MimeTypeUtils;
 
 @Service
 public class ManuscriptAnalysisService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(ManuscriptAnalysisService.class);
 
     private final ChatClient chatClient;
 
@@ -117,28 +125,138 @@ public class ManuscriptAnalysisService {
 
         MimeType mediaType = MimeTypeUtils.parseMimeType(mimeType);
 
-        ManuscriptAnalysis result = chatClient
-                .prompt()
-                .system(systemPrompt)
-                .user(user -> user
-                        .text(userPrompt)
-                        .media(
-                                mediaType,
-                                new ByteArrayResource(imageBytes)
-                        )
-                )
-                .call()
-                .entity(
-                        ManuscriptAnalysis.class,
-                        spec -> spec.useProviderStructuredOutput()
-                );
+        long startedAt = System.currentTimeMillis();
+
+        /*
+         * Elapsed-time instrumentation for the Gemini request. Only
+         * sizes and durations are logged - never the API key, the
+         * image bytes, or the manuscript content.
+         */
+        log.info(
+                "Gemini analysis request started " +
+                        "[stage=gemini-request, imageBytes={}, " +
+                        "mimeType={}]",
+                imageBytes.length,
+                mimeType
+        );
+
+        ManuscriptAnalysis result;
+
+        try {
+            /*
+             * This single timed block covers the Gemini HTTP request
+             * and the structured-output conversion that runs right
+             * after it; the failure category logged below is what
+             * tells the two apart when an exception occurs.
+             */
+            result = chatClient
+                    .prompt()
+                    .system(systemPrompt)
+                    .user(user -> user
+                            .text(userPrompt)
+                            .media(
+                                    mediaType,
+                                    new ByteArrayResource(imageBytes)
+                            )
+                    )
+                    .call()
+                    .entity(
+                            ManuscriptAnalysis.class,
+                            spec -> spec.useProviderStructuredOutput()
+                    );
+        } catch (RuntimeException ex) {
+            log.error(
+                    "Gemini analysis request failed " +
+                            "[stage={}, durationMs={}, category={}]",
+                    "gemini-request + structured-output-parsing",
+                    elapsedSince(startedAt),
+                    failureCategory(ex),
+                    ex
+            );
+            throw ex;
+        }
+
+        long durationMs = elapsedSince(startedAt);
 
         if (result == null) {
+            log.error(
+                    "Gemini analysis returned no result " +
+                            "[stage=structured-output-parsing, " +
+                            "durationMs={}]",
+                    durationMs
+            );
             throw new IllegalStateException(
                     "Gemini returned an empty manuscript analysis."
             );
         }
 
+        log.info(
+                "Gemini analysis request finished " +
+                        "[durationMs={}, extractedTextChars={}, " +
+                        "translationChars={}, flaggedWords={}]",
+                durationMs,
+                lengthOf(result.extractedText()),
+                lengthOf(result.translation()),
+                result.flaggedWords() == null
+                        ? 0
+                        : result.flaggedWords().size()
+        );
+
         return result;
+    }
+
+    private long elapsedSince(long startedAt) {
+        return System.currentTimeMillis() - startedAt;
+    }
+
+    private int lengthOf(String text) {
+        return text == null ? 0 : text.length();
+    }
+
+    /**
+     * Server-side-only failure classification for the elapsed-time
+     * log line. Never forwarded to the browser.
+     */
+    private String failureCategory(Throwable throwable) {
+        if (findCause(throwable, ApiException.class) != null) {
+            return "gemini-api";
+        }
+
+        if (findCause(throwable, GenAiIOException.class) != null
+                || findCause(
+                        throwable,
+                        java.io.InterruptedIOException.class
+                ) != null
+                || findCause(
+                        throwable,
+                        java.net.UnknownHostException.class
+                ) != null) {
+            return "gemini-network-or-timeout";
+        }
+
+        if (findCause(throwable, JsonProcessingException.class) != null) {
+            return "structured-output-parsing";
+        }
+
+        return "unexpected";
+    }
+
+    private <T extends Throwable> T findCause(
+            Throwable throwable,
+            Class<T> type
+    ) {
+        Throwable current = throwable;
+
+        while (current != null) {
+            if (type.isInstance(current)) {
+                return type.cast(current);
+            }
+
+            current = current.getCause() == current
+                    ? null
+                    : current.getCause();
+        }
+
+        return null;
     }
 }

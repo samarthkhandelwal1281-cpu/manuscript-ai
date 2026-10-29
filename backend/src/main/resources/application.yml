@@ -7,11 +7,20 @@ spring:
     model:
       chat: google-genai
 
+    # Retry policy for the Gemini call (Spring AI). The default of
+    # 10 attempts with backoff up to 180s per attempt cannot fit
+    # inside the SSE streaming window, so the analysis runs as a
+    # single bounded attempt. Transient HTTP 429/5xx responses are
+    # still retried by the Google client itself, inside one
+    # bounded call.
+    retry:
+      max-attempts: 1
+
     google:
       genai:
         api-key: ${GEMINI_API_KEY}
         chat:
-          model: gemini-2.5-flash
+          model: gemini-3.8-flash
           response-mime-type: application/json
 
   # File Upload Configuration
@@ -22,7 +31,11 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:h2:mem:manuscriptdb
+    # DB_CLOSE_DELAY=-1 keeps the named in-memory database alive for
+    # the lifetime of the JVM. Without it, the schema can disappear
+    # whenever every pooled connection cycles, and later queries hit
+    # a fresh, empty database ("Table MANUSCRIPTS not found").
+    url: jdbc:h2:mem:manuscriptdb;DB_CLOSE_DELAY=-1
     driverClassName: org.h2.Driver
     username: sa
     password: password
@@ -37,6 +50,19 @@ spring:
   h2:
     console:
       enabled: true
+
+# Analysis pipeline timeouts
+app:
+  analysis:
+    # Overall SSE streaming window for POST /api/manuscripts/analyze.
+    # Keep it larger than the Gemini request timeout so a timed-out
+    # Gemini call can still report a clear error while the response
+    # is alive. Override: APP_ANALYSIS_SSE_TIMEOUT_MS.
+    sse-timeout-ms: ${APP_ANALYSIS_SSE_TIMEOUT_MS:120000}
+    # Hard bound for one Gemini HTTP request (OkHttp call timeout,
+    # also sent to Google as X-Server-Timeout).
+    # Override: APP_ANALYSIS_GEMINI_TIMEOUT_MS.
+    gemini-timeout-ms: ${APP_ANALYSIS_GEMINI_TIMEOUT_MS:100000}
 
 # Server Configuration
 server:

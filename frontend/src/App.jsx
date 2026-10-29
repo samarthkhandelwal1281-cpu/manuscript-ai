@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import AnalysisPage from './pages/AnalysisPage';
+import ManuscriptDetailPage from './pages/ManuscriptDetailPage';
 import AboutPage from './pages/AboutPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProcessingOverlay from './components/ProcessingOverlay';
@@ -144,6 +145,11 @@ export default function App() {
                         onAnalyze={handleStartAnalysis}
                     />
                   }
+              />
+
+              <Route
+                  path="/manuscript/:id"
+                  element={<ManuscriptDetailPage />}
               />
 
               <Route
